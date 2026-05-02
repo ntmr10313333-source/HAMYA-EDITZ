@@ -11,16 +11,22 @@ jobs:
     steps:
       - name: Configure Core RDP Settings
         run: |
+          # リモートデスクトップ接続の許可
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
+          
+          # 【追加】マイク（オーディオキャプチャ）を許可する設定
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "fDisableAudioCapture" -Value 0 -Force
+          
+          # ファイアウォール設定
           netsh advfirewall firewall delete rule name="RDP-Tailscale"
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
           Restart-Service -Name TermService -Force
 
       - name: Create RDP User with Secure Password
         run: |
-          $password = "P@ssword2024!" # ここを自分の好きなパスワードに変えてもOK
+          $password = "P@ssword2024!" 
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
           New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "RDP"
@@ -36,8 +42,7 @@ jobs:
 
       - name: Establish Tailscale Connection
         run: |
-          # 【ここが重要】--hostname に自分の好きな名前を入れてください
-          # これであなたのネットワーク内でこの名前で表示されます
+          # --hostname で自分の好きなネットワーク名に固定しています
           & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname="my-custom-win11" --accept-routes
           
           $tsIP = $null
